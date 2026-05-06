@@ -6,8 +6,9 @@ from models import RawItem
 
 
 class BaseSource(ABC):
-    source_name: str
+    @property
+    @abstractmethod
+    def source_name(self) -> str: ...
 
     @abstractmethod
-    async def fetch(self, client: httpx.AsyncClient) -> list[RawItem]:
-        ...
+    async def fetch(self, client: httpx.AsyncClient) -> list[RawItem]: ...

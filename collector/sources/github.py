@@ -16,7 +16,7 @@ class GitHubSource(BaseSource):
     source_name = "github"
 
     async def fetch(self, client: httpx.AsyncClient) -> list[RawItem]:
-        since = (datetime.now(tz=timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d")
+        since = (datetime.now(tz=timezone.utc) - timedelta(days=settings.item_ttl_days)).strftime("%Y-%m-%d")
         headers = {"Accept": "application/vnd.github+json"}
         if settings.github_token:
             headers["Authorization"] = f"Bearer {settings.github_token}"
