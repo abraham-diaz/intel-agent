@@ -34,7 +34,7 @@ async def process_item(
         resp = await client.post(
             f"{settings.ollama_url}/api/generate",
             json={"model": settings.ollama_model, "prompt": prompt, "stream": False},
-            timeout=60.0,
+            timeout=300.0,
         )
         resp.raise_for_status()
         data = json.loads(resp.json()["response"])
