@@ -1,11 +1,10 @@
-import asyncio
 import logging
 
 import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from db import get_unprocessed_items, mark_source_run, save_items, update_item_llm
-from processor import process_item
+from config import settings
+from db import cleanup_old_items, mark_source_run, save_items
 from sources.arxiv import ArXivSource
 from sources.base import BaseSource
 from sources.github import GitHubSource
@@ -26,22 +25,8 @@ async def collect(source: BaseSource) -> None:
         logger.info("%s: %d new / %d fetched", source.source_name, saved, len(items))
 
 
-async def process_pending() -> None:
-    rows = await get_unprocessed_items(limit=20)
-    if not rows:
-        return
-    logger.info("Processing %d pending items…", len(rows))
-    async with httpx.AsyncClient() as client:
-        for row in rows:
-            result = await process_item(row["id"], row["title"], row["description"], client)
-            if result:
-                await update_item_llm(
-                    row["id"],
-                    result.get("summary", []),
-                    result.get("category", "tech-other"),
-                    result.get("tags", []),
-                )
-            await asyncio.sleep(1)  # no saturar la raspi entre llamadas LLM
+async def cleanup() -> None:
+    await cleanup_old_items(settings.item_ttl_days)
 
 
 def build_scheduler() -> AsyncIOScheduler:
@@ -53,6 +38,6 @@ def build_scheduler() -> AsyncIOScheduler:
     scheduler.add_job(collect, "interval", hours=24,  args=[TMDBSource()],   id="collect_tmdb")
     scheduler.add_job(collect, "interval", hours=24,  args=[RAWGSource()],   id="collect_rawg")
     scheduler.add_job(collect, "interval", hours=6,   args=[LastFMSource()], id="collect_lastfm")
-    scheduler.add_job(process_pending, "interval", minutes=30, id="process_pending")
+    scheduler.add_job(cleanup, "interval", hours=24,  id="cleanup")
 
     return scheduler

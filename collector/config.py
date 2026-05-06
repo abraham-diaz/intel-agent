@@ -10,13 +10,12 @@ class Settings(BaseSettings):
     db_user: str = "intel"
     db_password: str = "changeme"
 
-    ollama_url: str = "http://localhost:11434"
-    ollama_model: str = "gemma2:2b"
-
     github_token: str = ""
     tmdb_api_key: str = ""
     rawg_api_key: str = ""
     lastfm_api_key: str = ""
+
+    item_ttl_days: int = 7
 
     log_level: str = "INFO"
 

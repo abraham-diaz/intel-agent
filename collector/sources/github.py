@@ -39,6 +39,7 @@ class GitHubSource(BaseSource):
                 source_name=self.source_name,
                 external_id=str(r["id"]),
                 title=r["full_name"],
+                category="tech-infra",
                 url=r["html_url"],
                 description=r.get("description"),
                 published_at=datetime.fromisoformat(r["created_at"].replace("Z", "+00:00"))

@@ -37,6 +37,7 @@ class LastFMSource(BaseSource):
                 source_name=self.source_name,
                 external_id=f"{t.get('artist', {}).get('name', 'unknown')}-{t['name']}",
                 title=f"{t['name']} — {t.get('artist', {}).get('name', '')}",
+                category="music",
                 url=t.get("url"),
             )
             for t in tracks

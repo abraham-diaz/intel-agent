@@ -28,14 +28,9 @@ _CATEGORY_MAP = {
 def _fmt_item(record) -> str:
     title = html.escape(record["title"] or "")
     url = record.get("url") or ""
-    summary: list[str] = record.get("summary") or []
-
-    lines = [f"<b>{title}</b>"]
     if url:
-        lines.append(url)
-    for bullet in summary[:3]:
-        lines.append(f"• {html.escape(str(bullet))}")
-    return "\n".join(lines)
+        return f'• <a href="{url}">{title}</a>'
+    return f"• {title}"
 
 
 async def cmd_start(update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -55,20 +50,18 @@ async def cmd_start(update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
 async def cmd_hoy(update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
     rows = await get_today_items()
     if not rows:
-        await update.message.reply_text("Aún no hay items procesados hoy.")
+        await update.message.reply_text("Aún no hay items de hoy.")
         return
 
     grouped: dict[str, list] = {}
     for r in rows:
-        grouped.setdefault(r["category"], []).append(r)
+        grouped.setdefault(r["category"] or "other", []).append(r)
 
     parts = [f"<b>Digest de hoy</b> — {len(rows)} items\n"]
     for cat, items in grouped.items():
-        parts.append(f"\n<b>{html.escape(cat)}</b> ({len(items)})")
-        for item in items[:3]:
-            parts.append(f"• {html.escape(item['title'])}")
-            if item.get("url"):
-                parts.append(f"  {item['url']}")
+        parts.append(f"\n<b>{html.escape(cat)}</b>")
+        for item in items[:5]:
+            parts.append(_fmt_item(item))
 
     await update.message.reply_text(
         "\n".join(parts), parse_mode=ParseMode.HTML, disable_web_page_preview=True
@@ -78,7 +71,7 @@ async def cmd_hoy(update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
 async def _send_category(update: Update, categories: list[str], label: str) -> None:
     all_rows = []
     for cat in categories:
-        rows = await get_items_by_category(cat, limit=5)
+        rows = await get_items_by_category(cat, limit=10)
         all_rows.extend(rows)
 
     if not all_rows:
@@ -86,9 +79,8 @@ async def _send_category(update: Update, categories: list[str], label: str) -> N
         return
 
     parts = [f"<b>{html.escape(label)}</b>\n"]
-    for r in all_rows[:10]:
+    for r in all_rows[:15]:
         parts.append(_fmt_item(r))
-        parts.append("")
 
     await update.message.reply_text(
         "\n".join(parts), parse_mode=ParseMode.HTML, disable_web_page_preview=True
@@ -125,7 +117,6 @@ async def cmd_buscar(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     parts = [f"<b>Resultados para «{html.escape(query)}»</b>\n"]
     for r in rows:
         parts.append(_fmt_item(r))
-        parts.append("")
 
     await update.message.reply_text(
         "\n".join(parts), parse_mode=ParseMode.HTML, disable_web_page_preview=True
@@ -157,18 +148,18 @@ def main() -> None:
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
     )
 
+    user_filter = (
+        filters.User(user_id=settings.telegram_allowed_user_id)
+        if settings.telegram_allowed_user_id
+        else filters.ALL
+    )
+
     app = (
         Application.builder()
         .token(settings.telegram_token)
         .post_init(_post_init)
         .post_shutdown(_post_shutdown)
         .build()
-    )
-
-    user_filter = (
-        filters.User(user_id=settings.telegram_allowed_user_id)
-        if settings.telegram_allowed_user_id
-        else filters.ALL
     )
 
     app.add_handler(CommandHandler(["start", "help"], cmd_start, filters=user_filter))

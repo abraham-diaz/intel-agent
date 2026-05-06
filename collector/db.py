@@ -54,8 +54,8 @@ async def save_items(items: list[RawItem]) -> int:
             source_id = await ensure_source(item.source_name)
             result = await conn.execute(
                 """
-                INSERT INTO items (source_id, external_id, title, url, description, published_at)
-                VALUES ($1, $2, $3, $4, $5, $6)
+                INSERT INTO items (source_id, external_id, title, url, description, published_at, category, processed)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)
                 ON CONFLICT (source_id, external_id) DO NOTHING
                 """,
                 source_id,
@@ -64,46 +64,24 @@ async def save_items(items: list[RawItem]) -> int:
                 item.url,
                 item.description,
                 item.published_at,
+                item.category,
             )
             if result == "INSERT 0 1":
                 saved += 1
     return saved
 
 
-async def get_unprocessed_items(limit: int = 20) -> list[asyncpg.Record]:
+async def cleanup_old_items(ttl_days: int) -> int:
     pool = _pool_ref()
     async with pool.acquire() as conn:
-        return await conn.fetch(
-            """
-            SELECT id, title, description
-            FROM items
-            WHERE processed = FALSE
-            ORDER BY collected_at ASC
-            LIMIT $1
-            """,
-            limit,
+        result = await conn.execute(
+            "DELETE FROM items WHERE collected_at < NOW() - ($1 || ' days')::interval",
+            str(ttl_days),
         )
-
-
-async def update_item_llm(
-    item_id: int,
-    summary: list[str],
-    category: str,
-    tags: list[str],
-) -> None:
-    pool = _pool_ref()
-    async with pool.acquire() as conn:
-        await conn.execute(
-            """
-            UPDATE items
-            SET summary = $1, category = $2, tags = $3, processed = TRUE
-            WHERE id = $4
-            """,
-            summary,
-            category,
-            tags,
-            item_id,
-        )
+        deleted = int(result.split()[-1])
+        if deleted:
+            logger.info("Cleaned up %d items older than %d days", deleted, ttl_days)
+        return deleted
 
 
 async def mark_source_run(name: str) -> None:

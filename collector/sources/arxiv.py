@@ -57,6 +57,7 @@ class ArXivSource(BaseSource):
                 source_name=self.source_name,
                 external_id=arxiv_id,
                 title=title,
+                category="tech-ai",
                 url=raw_id,
                 description=summary[:500] if summary else None,
                 published_at=published_at,

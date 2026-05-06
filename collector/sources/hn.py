@@ -36,6 +36,7 @@ class HNSource(BaseSource):
                     source_name=self.source_name,
                     external_id=str(d["id"]),
                     title=d["title"],
+                    category="tech-other",
                     url=d.get("url"),
                     description=d.get("text"),
                     published_at=datetime.fromtimestamp(d["time"], tz=timezone.utc)

@@ -41,6 +41,7 @@ class TMDBSource(BaseSource):
                 source_name=self.source_name,
                 external_id=f"{media_type}-{r['id']}",
                 title=title,
+                category="film-tv",
                 url=f"https://www.themoviedb.org/{media_type}/{r['id']}",
                 description=r.get("overview") or None,
             ))

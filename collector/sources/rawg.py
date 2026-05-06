@@ -42,6 +42,7 @@ class RAWGSource(BaseSource):
                 source_name=self.source_name,
                 external_id=str(g["id"]),
                 title=g["name"],
+                category="gaming",
                 url=f"https://rawg.io/games/{g.get('slug', g['id'])}",
                 published_at=datetime.fromisoformat(g["released"]).replace(tzinfo=timezone.utc)
                 if g.get("released") else None,
