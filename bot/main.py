@@ -28,9 +28,13 @@ _CATEGORY_MAP = {
 def _fmt_item(record) -> str:
     title = html.escape(record["title"] or "")
     url = record.get("url") or ""
-    if url:
-        return f'• <a href="{url}">{title}</a>'
-    return f"• {title}"
+    desc = (record.get("description") or "").strip()
+
+    line = f'• <a href="{url}">{title}</a>' if url else f"• {title}"
+    if desc:
+        short = html.escape(desc[:200])
+        line += f"\n  <i>{short}</i>"
+    return line
 
 
 async def cmd_start(update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:

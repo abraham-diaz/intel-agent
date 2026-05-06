@@ -34,9 +34,9 @@ async def get_items_by_category(category: str, limit: int = 10) -> list[asyncpg.
     async with _p().acquire() as conn:
         return await conn.fetch(
             """
-            SELECT title, url, summary, category, tags
+            SELECT title, url, description, category
             FROM items
-            WHERE category = $1 AND processed = TRUE
+            WHERE category = $1
             ORDER BY collected_at DESC
             LIMIT $2
             """,
@@ -48,9 +48,9 @@ async def get_today_items() -> list[asyncpg.Record]:
     async with _p().acquire() as conn:
         return await conn.fetch(
             """
-            SELECT title, url, summary, category
+            SELECT title, url, description, category
             FROM items
-            WHERE collected_at >= CURRENT_DATE AND processed = TRUE
+            WHERE collected_at >= CURRENT_DATE
             ORDER BY category, collected_at DESC
             """,
         )
@@ -60,9 +60,9 @@ async def search_items(query: str, limit: int = 10) -> list[asyncpg.Record]:
     async with _p().acquire() as conn:
         return await conn.fetch(
             """
-            SELECT title, url, summary, category
+            SELECT title, url, description, category
             FROM items
-            WHERE title ILIKE $1 AND processed = TRUE
+            WHERE title ILIKE $1
             ORDER BY collected_at DESC
             LIMIT $2
             """,

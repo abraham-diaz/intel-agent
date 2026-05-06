@@ -1,7 +1,9 @@
+import asyncio
 import logging
 from datetime import datetime, timezone
 
 import httpx
+from bs4 import BeautifulSoup
 
 from models import RawItem
 from sources.base import BaseSource
@@ -10,6 +12,20 @@ logger = logging.getLogger(__name__)
 
 _BASE = "https://hacker-news.firebaseio.com/v0"
 _TOP_N = 30
+_HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; intel-agent/1.0)"}
+
+
+async def _fetch_meta_desc(url: str, client: httpx.AsyncClient) -> str | None:
+    try:
+        r = await client.get(url, timeout=5.0, follow_redirects=True, headers=_HEADERS)
+        soup = BeautifulSoup(r.text, "html.parser")
+        tag = soup.find("meta", property="og:description") or \
+              soup.find("meta", attrs={"name": "description"})
+        if tag and tag.get("content"):
+            return tag["content"][:300].strip()
+    except Exception:
+        pass
+    return None
 
 
 class HNSource(BaseSource):
@@ -44,4 +60,15 @@ class HNSource(BaseSource):
                 ))
             except httpx.HTTPError as e:
                 logger.warning("HN item %d: %s", story_id, e)
+
+        # Fetch meta descriptions concurrently para items con URL externa
+        items_with_url = [item for item in items if item.url and not item.description]
+        if items_with_url:
+            descs = await asyncio.gather(*[
+                _fetch_meta_desc(item.url, client) for item in items_with_url
+            ])
+            for item, desc in zip(items_with_url, descs):
+                if desc:
+                    item.description = desc
+
         return items
