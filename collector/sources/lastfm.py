@@ -23,7 +23,7 @@ class LastFMSource(BaseSource):
             resp = await client.get(
                 _BASE,
                 params={"method": "chart.gettoptracks", "api_key": settings.lastfm_api_key,
-                        "format": "json", "limit": 30},
+                        "format": "json", "limit": 50},
                 timeout=15.0,
             )
             resp.raise_for_status()

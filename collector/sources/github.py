@@ -24,7 +24,7 @@ class GitHubSource(BaseSource):
         try:
             resp = await client.get(
                 _SEARCH,
-                params={"q": f"created:>{since}", "sort": "stars", "order": "desc", "per_page": 20},
+                params={"q": f"created:>{since}", "sort": "stars", "order": "desc", "per_page": 50},
                 headers=headers,
                 timeout=15.0,
             )

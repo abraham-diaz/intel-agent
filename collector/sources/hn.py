@@ -11,7 +11,7 @@ from sources.base import BaseSource
 logger = logging.getLogger(__name__)
 
 _BASE = "https://hacker-news.firebaseio.com/v0"
-_TOP_N = 30
+_TOP_N = 50
 _HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; intel-agent/1.0)"}
 
 
