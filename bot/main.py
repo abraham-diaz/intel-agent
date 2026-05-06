@@ -1,5 +1,6 @@
 import html
 import logging
+from datetime import datetime, timezone
 
 from telegram import Update
 from telegram.constants import ParseMode
@@ -24,17 +25,56 @@ _CATEGORY_MAP = {
     "films":  ["film-tv"],
 }
 
+_CAT_EMOJI = {
+    "tech-ai":       "🤖",
+    "tech-frontend": "🖥",
+    "tech-infra":    "⚙️",
+    "tech-other":    "🔧",
+    "gaming":        "🎮",
+    "music":         "🎵",
+    "film-tv":       "🎬",
+}
 
-def _fmt_item(record) -> str:
+_SOURCE_LABEL = {
+    "hackernews": "HN",
+    "github":     "GitHub",
+    "arxiv":      "arXiv",
+    "tmdb":       "TMDB",
+    "rawg":       "RAWG",
+    "lastfm":     "Last.fm",
+}
+
+
+def _relative_time(dt) -> str:
+    if dt is None:
+        return ""
+    now = datetime.now(tz=timezone.utc)
+    aware = dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
+    secs = int((now - aware).total_seconds())
+    if secs < 3600:
+        return f"hace {secs // 60}m"
+    if secs < 86400:
+        return f"hace {secs // 3600}h"
+    return f"hace {secs // 86400}d"
+
+
+def _fmt_item(record, idx: int) -> str:
     title = html.escape(record["title"] or "")
     url = record.get("url") or ""
     desc = (record.get("description") or "").strip()
+    source = _SOURCE_LABEL.get(record.get("source_name", ""), "")
+    age = _relative_time(record.get("collected_at"))
 
-    line = f'• <a href="{url}">{title}</a>' if url else f"• {title}"
+    title_line = f'<b>{idx}.</b> <a href="{url}">{title}</a>' if url else f"<b>{idx}.</b> {title}"
+
+    lines = [title_line]
     if desc:
-        short = html.escape(desc[:200])
-        line += f"\n  <i>{short}</i>"
-    return line
+        lines.append(f"   <i>{html.escape(desc[:200])}</i>")
+    meta = " · ".join(filter(None, [source, age]))
+    if meta:
+        lines.append(f"   {meta}")
+
+    return "\n".join(lines)
 
 
 async def cmd_start(update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -63,9 +103,11 @@ async def cmd_hoy(update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     parts = [f"<b>Digest de hoy</b> — {len(rows)} items\n"]
     for cat, items in grouped.items():
-        parts.append(f"\n<b>{html.escape(cat)}</b>")
-        for item in items[:5]:
-            parts.append(_fmt_item(item))
+        emoji = _CAT_EMOJI.get(cat, "📌")
+        parts.append(f"{emoji} <b>{html.escape(cat)}</b>")
+        for idx, item in enumerate(items[:3], 1):
+            parts.append(_fmt_item(item, idx))
+        parts.append("")
 
     await update.message.reply_text(
         "\n".join(parts), parse_mode=ParseMode.HTML, disable_web_page_preview=True
@@ -82,9 +124,11 @@ async def _send_category(update: Update, categories: list[str], label: str) -> N
         await update.message.reply_text(f"No hay items de {label} todavía.")
         return
 
-    parts = [f"<b>{html.escape(label)}</b>\n"]
-    for r in all_rows[:15]:
-        parts.append(_fmt_item(r))
+    emoji = _CAT_EMOJI.get(categories[0], "📌")
+    parts = [f"{emoji} <b>{html.escape(label)}</b>\n"]
+    for idx, r in enumerate(all_rows[:15], 1):
+        parts.append(_fmt_item(r, idx))
+        parts.append("")
 
     await update.message.reply_text(
         "\n".join(parts), parse_mode=ParseMode.HTML, disable_web_page_preview=True
@@ -119,8 +163,9 @@ async def cmd_buscar(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     parts = [f"<b>Resultados para «{html.escape(query)}»</b>\n"]
-    for r in rows:
-        parts.append(_fmt_item(r))
+    for idx, r in enumerate(rows, 1):
+        parts.append(_fmt_item(r, idx))
+        parts.append("")
 
     await update.message.reply_text(
         "\n".join(parts), parse_mode=ParseMode.HTML, disable_web_page_preview=True

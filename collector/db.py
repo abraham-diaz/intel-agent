@@ -56,7 +56,9 @@ async def save_items(items: list[RawItem]) -> int:
                 """
                 INSERT INTO items (source_id, external_id, title, url, description, published_at, category, processed)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)
-                ON CONFLICT (source_id, external_id) DO NOTHING
+                ON CONFLICT (source_id, external_id) DO UPDATE
+                SET description = EXCLUDED.description
+                WHERE items.description IS NULL
                 """,
                 source_id,
                 item.external_id,
