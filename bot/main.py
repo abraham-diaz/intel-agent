@@ -42,6 +42,8 @@ _SOURCE_LABEL = {
     "tmdb":       "TMDB",
     "rawg":       "RAWG",
     "lastfm":     "Last.fm",
+    "devto":      "DEV.to",
+    "reddit":     "Reddit",
 }
 
 

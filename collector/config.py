@@ -6,6 +6,7 @@ class Settings(BaseConfig):
     tmdb_api_key: str = ""
     rawg_api_key: str = ""
     lastfm_api_key: str = ""
+    devto_api_key: str = ""
 
     item_ttl_days: int = 7
 
