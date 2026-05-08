@@ -25,7 +25,7 @@ async def close_pool() -> None:
         await _pool.close()
 
 
-def _p() -> asyncpg.Pool:
+def _pool_ref() -> asyncpg.Pool:
     assert _pool is not None
     return _pool
 
@@ -37,23 +37,35 @@ _BASE_SELECT = """
 """
 
 
-async def get_items_by_category(category: str, limit: int = 10) -> list[asyncpg.Record]:
-    async with _p().acquire() as conn:
+async def get_items_by_categories(categories: list[str], limit: int = 15) -> list[asyncpg.Record]:
+    async with _pool_ref().acquire() as conn:
         return await conn.fetch(
-            f"{_BASE_SELECT} WHERE i.category = $1 ORDER BY i.collected_at DESC LIMIT $2",
-            category, limit,
+            f"{_BASE_SELECT} WHERE i.category = ANY($1) ORDER BY i.collected_at DESC LIMIT $2",
+            categories, limit,
         )
 
 
-async def get_today_items() -> list[asyncpg.Record]:
-    async with _p().acquire() as conn:
+async def get_today_items(limit_per_category: int = 5) -> list[asyncpg.Record]:
+    async with _pool_ref().acquire() as conn:
         return await conn.fetch(
-            f"{_BASE_SELECT} WHERE i.collected_at >= CURRENT_DATE ORDER BY i.category, i.collected_at DESC",
+            """
+            SELECT title, url, description, category, collected_at, source_name FROM (
+                SELECT i.title, i.url, i.description, i.category, i.collected_at,
+                       s.name AS source_name,
+                       ROW_NUMBER() OVER (PARTITION BY i.category ORDER BY i.collected_at DESC) AS rn
+                FROM items i
+                JOIN sources s ON s.id = i.source_id
+                WHERE i.collected_at >= CURRENT_DATE
+            ) sub
+            WHERE rn <= $1
+            ORDER BY category, collected_at DESC
+            """,
+            limit_per_category,
         )
 
 
 async def search_items(query: str, limit: int = 10) -> list[asyncpg.Record]:
-    async with _p().acquire() as conn:
+    async with _pool_ref().acquire() as conn:
         return await conn.fetch(
             f"{_BASE_SELECT} WHERE i.title ILIKE $1 ORDER BY i.collected_at DESC LIMIT $2",
             f"%{query}%", limit,
@@ -61,7 +73,7 @@ async def search_items(query: str, limit: int = 10) -> list[asyncpg.Record]:
 
 
 async def get_source_status() -> list[asyncpg.Record]:
-    async with _p().acquire() as conn:
+    async with _pool_ref().acquire() as conn:
         return await conn.fetch(
             "SELECT name, enabled, last_run FROM sources ORDER BY name",
         )

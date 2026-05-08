@@ -16,7 +16,9 @@ services:
     restart: unless-stopped
 
   collector:
-    build: ./collector
+    build:
+      context: .
+      dockerfile: collector/Dockerfile
     env_file: .env
     environment:
       DB_HOST: db
@@ -26,7 +28,9 @@ services:
     restart: unless-stopped
 
   bot:
-    build: ./bot
+    build:
+      context: .
+      dockerfile: bot/Dockerfile
     env_file: .env
     environment:
       DB_HOST: db

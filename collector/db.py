@@ -33,34 +33,33 @@ def _pool_ref() -> asyncpg.Pool:
     return _pool
 
 
-async def ensure_source(name: str) -> int:
-    pool = _pool_ref()
-    async with pool.acquire() as conn:
-        await conn.execute(
-            "INSERT INTO sources (name) VALUES ($1) ON CONFLICT (name) DO NOTHING",
-            name,
-        )
-        row = await conn.fetchrow("SELECT id FROM sources WHERE name = $1", name)
-        return row["id"]
+async def _ensure_source(conn: asyncpg.Connection, name: str) -> int:
+    row = await conn.fetchrow(
+        "INSERT INTO sources (name) VALUES ($1) ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id",
+        name,
+    )
+    return row["id"]
 
 
 async def save_items(items: list[RawItem]) -> int:
     if not items:
         return 0
-    pool = _pool_ref()
     saved = 0
-    async with pool.acquire() as conn:
+    async with _pool_ref().acquire() as conn:
+        source_ids: dict[str, int] = {
+            name: await _ensure_source(conn, name)
+            for name in {item.source_name for item in items}
+        }
         for item in items:
-            source_id = await ensure_source(item.source_name)
             result = await conn.execute(
                 """
-                INSERT INTO items (source_id, external_id, title, url, description, published_at, category, processed)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)
+                INSERT INTO items (source_id, external_id, title, url, description, published_at, category)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
                 ON CONFLICT (source_id, external_id) DO UPDATE
                 SET description = EXCLUDED.description
                 WHERE items.description IS NULL
                 """,
-                source_id,
+                source_ids[item.source_name],
                 item.external_id,
                 item.title,
                 item.url,
@@ -74,11 +73,10 @@ async def save_items(items: list[RawItem]) -> int:
 
 
 async def cleanup_old_items(ttl_days: int) -> int:
-    pool = _pool_ref()
-    async with pool.acquire() as conn:
+    async with _pool_ref().acquire() as conn:
         result = await conn.execute(
-            "DELETE FROM items WHERE collected_at < NOW() - ($1 || ' days')::interval",
-            str(ttl_days),
+            "DELETE FROM items WHERE collected_at < NOW() - make_interval(days => $1)",
+            ttl_days,
         )
         deleted = int(result.split()[-1])
         if deleted:
@@ -87,8 +85,7 @@ async def cleanup_old_items(ttl_days: int) -> int:
 
 
 async def mark_source_run(name: str) -> None:
-    pool = _pool_ref()
-    async with pool.acquire() as conn:
+    async with _pool_ref().acquire() as conn:
         await conn.execute(
             "UPDATE sources SET last_run = NOW() WHERE name = $1",
             name,

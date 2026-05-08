@@ -28,7 +28,7 @@ class RAWGSource(BaseSource):
             resp = await client.get(
                 f"{_BASE}/games",
                 params={"key": settings.rawg_api_key, "dates": f"{date_from},{date_to}",
-                        "ordering": "-added", "page_size": 20},
+                        "ordering": "-added", "page_size": 40},
                 timeout=15.0,
             )
             resp.raise_for_status()

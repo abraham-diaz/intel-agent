@@ -9,7 +9,7 @@ from telegram.ext import Application, CommandHandler, ContextTypes, filters
 from config import settings
 from db import (
     close_pool,
-    get_items_by_category,
+    get_items_by_categories,
     get_source_status,
     get_today_items,
     init_pool,
@@ -42,10 +42,12 @@ _SOURCE_LABEL = {
     "tmdb":       "TMDB",
     "rawg":       "RAWG",
     "lastfm":     "Last.fm",
+    "devto":      "DEV.to",
+    "reddit":     "Reddit",
 }
 
 
-def _relative_time(dt) -> str:
+def _relative_time(dt: datetime | None) -> str:
     if dt is None:
         return ""
     now = datetime.now(tz=timezone.utc)
@@ -105,7 +107,7 @@ async def cmd_hoy(update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
     for cat, items in grouped.items():
         emoji = _CAT_EMOJI.get(cat, "📌")
         parts.append(f"{emoji} <b>{html.escape(cat)}</b>")
-        for idx, item in enumerate(items[:3], 1):
+        for idx, item in enumerate(items, 1):
             parts.append(_fmt_item(item, idx))
         parts.append("")
 
@@ -115,18 +117,14 @@ async def cmd_hoy(update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def _send_category(update: Update, categories: list[str], label: str) -> None:
-    all_rows = []
-    for cat in categories:
-        rows = await get_items_by_category(cat, limit=10)
-        all_rows.extend(rows)
-
-    if not all_rows:
+    rows = await get_items_by_categories(categories)
+    if not rows:
         await update.message.reply_text(f"No hay items de {label} todavía.")
         return
 
     emoji = _CAT_EMOJI.get(categories[0], "📌")
     parts = [f"{emoji} <b>{html.escape(label)}</b>\n"]
-    for idx, r in enumerate(all_rows[:15], 1):
+    for idx, r in enumerate(rows, 1):
         parts.append(_fmt_item(r, idx))
         parts.append("")
 
@@ -135,19 +133,19 @@ async def _send_category(update: Update, categories: list[str], label: str) -> N
     )
 
 
-async def cmd_tech(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+async def cmd_tech(update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await _send_category(update, _CATEGORY_MAP["tech"], "Tech")
 
 
-async def cmd_gaming(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+async def cmd_gaming(update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await _send_category(update, _CATEGORY_MAP["gaming"], "Gaming")
 
 
-async def cmd_music(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+async def cmd_music(update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await _send_category(update, _CATEGORY_MAP["music"], "Música")
 
 
-async def cmd_films(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+async def cmd_films(update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await _send_category(update, _CATEGORY_MAP["films"], "Películas y series")
 
 

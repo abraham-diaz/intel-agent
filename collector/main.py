@@ -5,10 +5,12 @@ from config import settings
 from db import close_pool, init_pool
 from scheduler import build_scheduler, collect
 from sources.arxiv import ArXivSource
+from sources.devto import DevToSource
 from sources.github import GitHubSource
 from sources.hn import HNSource
 from sources.lastfm import LastFMSource
 from sources.rawg import RAWGSource
+from sources.reddit import RedditSource
 from sources.tmdb import TMDBSource
 
 logging.basicConfig(
@@ -24,6 +26,8 @@ _ALL_SOURCES = [
     TMDBSource(),
     RAWGSource(),
     LastFMSource(),
+    DevToSource(),
+    RedditSource(),
 ]
 
 

@@ -22,7 +22,7 @@ class ArXivSource(BaseSource):
         try:
             resp = await client.get(
                 _API,
-                params={"search_query": _QUERY, "start": 0, "max_results": 20,
+                params={"search_query": _QUERY, "start": 0, "max_results": 50,
                         "sortBy": "submittedDate", "sortOrder": "descending"},
                 timeout=20.0,
             )
